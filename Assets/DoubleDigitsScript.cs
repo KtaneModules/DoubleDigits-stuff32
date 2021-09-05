@@ -1,15 +1,16 @@
-﻿using System;
+﻿using KModkit;
+using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
-using KModkit;
 using Rnd = UnityEngine.Random;
 
-public class DoubleDigitsScript : MonoBehaviour {
+public class DoubleDigitsScript : MonoBehaviour
+{
 
-    static int _moduleIdCounter = 1;
-    int _moduleID = 0;
+    private static int _moduleIdCounter = 1;
+    private int _moduleID = 0;
+    private bool _moduleSolved;
 
     public KMBombModule Module;
     public KMBombInfo Bomb;
@@ -18,10 +19,11 @@ public class DoubleDigitsScript : MonoBehaviour {
     public TextMesh[] screenTexts;
 
     private int[] digits = new int[2];
-    private int[] correctDigits = new int[2];
+    private readonly int[] correctDigits = new int[2];
     private int answer;
 
-    private int[,] TableOne = {
+
+    private static readonly int[,] TableOne = {
         {8, 5, 8, 3, 4, 1, 1, 9, 8, 3},
         {9, 7, 4, 1, 5, 2, 1, 4, 4, 2},
         {1, 8, 6, 1, 4, 6, 6, 8, 9, 4},
@@ -30,7 +32,7 @@ public class DoubleDigitsScript : MonoBehaviour {
         {1, 1, 8, 8, 6, 3, 1, 7, 7, 6}
     };
 
-    private int[,] TableTwo = {
+    private static readonly int[,] TableTwo = {
         {5, 9, 9, 5, 5, 9, 3, 8, 9, 2},
         {6, 7, 9, 6, 8, 8, 7, 5, 9, 7},
         {8, 1, 3, 1, 8, 1, 9, 1, 7, 2},
@@ -39,7 +41,8 @@ public class DoubleDigitsScript : MonoBehaviour {
         {9, 2, 5, 7, 6, 2, 2, 5, 7, 3}
     };
 
-    void Start () {
+    private void Start()
+    {
         _moduleID = _moduleIdCounter++;
         Button.OnInteract = ButtonPressed();
         Button.OnInteractEnded += delegate () { Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonRelease, Button.transform); };
@@ -55,6 +58,7 @@ public class DoubleDigitsScript : MonoBehaviour {
             //Debug.Log("Button Pressed");
             if ((int)Bomb.GetTime() % 10 == answer)
             {
+                _moduleSolved = true;
                 Module.HandlePass();
                 screenTexts[0].text = "G";
                 screenTexts[1].text = "G";
@@ -69,10 +73,6 @@ public class DoubleDigitsScript : MonoBehaviour {
         };
     }
 
-    public static int ClipMax(int value, int maximumValue)
-    {
-        return value >= maximumValue ? maximumValue : value;
-    }
     private void Generate()
     {
         for (int i = 0; i < screenTexts.Length; i++)
@@ -80,12 +80,35 @@ public class DoubleDigitsScript : MonoBehaviour {
             digits[i] = Rnd.Range(0, 10);
             screenTexts[i].text = digits[i].ToString();
         }
-        correctDigits[0] = TableOne[ClipMax(Bomb.GetBatteryCount(), 5), digits[0]];
-        correctDigits[1] = TableTwo[ClipMax(Bomb.GetBatteryCount(), 5), digits[1]];
+        correctDigits[0] = TableOne[Math.Min(Bomb.GetBatteryCount(), 5), digits[0]];
+        correctDigits[1] = TableTwo[Math.Min(Bomb.GetBatteryCount(), 5), digits[1]];
         answer = (correctDigits[0] * correctDigits[1]) % 10;
-        //Debug.Log(correctDigits[0]);
-        //Debug.Log(correctDigits[1]);
-        //Debug.Log(answer);
         Debug.LogFormat("[Double Digits #{0}] The button must be pushed when the last digit of the timer is a {1}", _moduleID, answer);
+    }
+
+#pragma warning disable 0414
+    private readonly string TwitchHelpMessage = "!{0} press 0-9 | Presses the button when the last digit of the timer is 0-9.";
+#pragma warning restore 0414
+    private IEnumerator ProcessTwitchCommand(string command)
+    {
+        if (_moduleSolved)
+            yield return null;
+        var m = Regex.Match(command, @"^\s*(press\s+)?([0-9])\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (!m.Success)
+            yield return null;
+        while ((int)Bomb.GetTime() % 10 != m.Groups[2].Value[0] - '0')
+            yield return "trycancel";
+        Button.OnInteract();
+        Button.OnInteractEnded();
+    }
+
+    private IEnumerator TwitchHandleForcedSolve()
+    {
+        if (_moduleSolved)
+            yield break;
+        while ((int)Bomb.GetTime() % 10 != answer)
+            yield return "trycancel";
+        Button.OnInteract();
+        Button.OnInteractEnded();
     }
 }
