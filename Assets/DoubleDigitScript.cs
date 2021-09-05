@@ -39,14 +39,10 @@ public class DoubleDigitScript : MonoBehaviour {
         {9, 2, 5, 7, 6, 2, 2, 5, 7, 3}
     };
 
-    void Awake()
-    {
-        _moduleID = _moduleIdCounter++;
-    }
-
-    // Use this for initialization
     void Start () {
+        _moduleID = _moduleIdCounter++;
         Button.OnInteract = ButtonPressed();
+        Button.OnInteractEnded += delegate () { Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonRelease, Button.transform); };
         Generate();
     }
 
@@ -56,16 +52,19 @@ public class DoubleDigitScript : MonoBehaviour {
         {
             Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonPress, Button.transform);
             Button.AddInteractionPunch();
-            Debug.Log("Button Pressed");
+            //Debug.Log("Button Pressed");
             if ((int)Bomb.GetTime() % 10 == answer)
             {
                 Module.HandlePass();
-            } 
+                screenTexts[0].text = "G";
+                screenTexts[1].text = "G";
+                Debug.LogFormat("[Double Digits #{0}] The button was correctly pushed at {1}. Module solved.", _moduleID, answer);
+            }
             else
             {
                 Module.HandleStrike();
+                Debug.LogFormat("[Double Digits #{0}] The button was incorrectly pushed at {1}. Strike.", _moduleID, (int)Bomb.GetTime() % 10);
             }
-
             return false;
         };
     }
@@ -81,12 +80,12 @@ public class DoubleDigitScript : MonoBehaviour {
             digits[i] = Rnd.Range(0, 10);
             screenTexts[i].text = digits[i].ToString();
         }
-
         correctDigits[0] = TableOne[ClipMax(Bomb.GetBatteryCount(), 5), digits[0]];
         correctDigits[1] = TableTwo[ClipMax(Bomb.GetBatteryCount(), 5), digits[1]];
         answer = (correctDigits[0] * correctDigits[1]) % 10;
-        Debug.Log(correctDigits[0]);
-        Debug.Log(correctDigits[1]);
-        Debug.Log(answer);
+        //Debug.Log(correctDigits[0]);
+        //Debug.Log(correctDigits[1]);
+        //Debug.Log(answer);
+        Debug.LogFormat("[Double Digits #{0}] The button must be pushed when the last digit of the timer is a {1}", _moduleID, answer);
     }
 }
