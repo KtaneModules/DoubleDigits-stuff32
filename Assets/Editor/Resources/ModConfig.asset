@@ -11,10 +11,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 615501dbe4f3fe94fbf4b564abb10237, type: 3}
   m_Name: ModConfig
   m_EditorClassIdentifier: 
-  id: 
-  title: 
-  author: 
-  description: 
-  version: 
+  id: doubleDigitsModule
+  title: Double Digits
+  author: GoodHood
+  description: 'Wait, why are there two?
+
+    Made by GoodHood'
+  version: 1.0
   outputFolder: build
-  previewImage: {fileID: 0}
+  previewImage: {fileID: 2800000, guid: a3b88cf8c1ce1d041b0822a1b364de4a, type: 3}
