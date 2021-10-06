@@ -9,7 +9,7 @@ public class DoubleDigitsScript : MonoBehaviour
 {
 
     private static int _moduleIdCounter = 1;
-    private int _moduleID = 0;
+    private int _moduleId;
     private bool _moduleSolved;
 
     public KMBombModule Module;
@@ -17,6 +17,7 @@ public class DoubleDigitsScript : MonoBehaviour
     public KMAudio Audio;
     public KMSelectable Button;
     public TextMesh[] screenTexts;
+    public GameObject ButtonObj;
 
     private int[] digits = new int[2];
     private readonly int[] correctDigits = new int[2];
@@ -43,34 +44,52 @@ public class DoubleDigitsScript : MonoBehaviour
 
     private void Start()
     {
-        _moduleID = _moduleIdCounter++;
-        Button.OnInteract = ButtonPressed();
-        Button.OnInteractEnded += delegate () { Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonRelease, Button.transform); };
+        _moduleId = _moduleIdCounter++;
+        Button.OnInteract += ButtonPress;
+        Button.OnInteractEnded += ButtonRelease;
         Generate();
     }
 
-    private KMSelectable.OnInteractHandler ButtonPressed()
+    private bool ButtonPress()
     {
-        return delegate
+        Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonPress, Button.transform);
+        Button.AddInteractionPunch();
+        StartCoroutine(MoveButton(true));
+        if (!_moduleSolved)
         {
-            Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonPress, Button.transform);
-            Button.AddInteractionPunch();
-            //Debug.Log("Button Pressed");
             if ((int)Bomb.GetTime() % 10 == answer)
             {
                 _moduleSolved = true;
                 Module.HandlePass();
                 screenTexts[0].text = "G";
                 screenTexts[1].text = "G";
-                Debug.LogFormat("[Double Digits #{0}] The button was correctly pushed at {1}. Module solved.", _moduleID, answer);
+                Debug.LogFormat("[Double Digits #{0}] The button was correctly pushed at {1}. Module solved.", _moduleId, answer);
             }
             else
             {
                 Module.HandleStrike();
-                Debug.LogFormat("[Double Digits #{0}] The button was incorrectly pushed at {1}. Strike.", _moduleID, (int)Bomb.GetTime() % 10);
+                Debug.LogFormat("[Double Digits #{0}] The button was incorrectly pushed at {1}. Strike.", _moduleId, (int)Bomb.GetTime() % 10);
             }
-            return false;
-        };
+        }
+        return false;
+    }
+
+    private void ButtonRelease()
+    {
+        Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonRelease, Button.transform);
+        StartCoroutine(MoveButton(false));
+    }
+
+    private IEnumerator MoveButton(bool pushIn)
+    {
+        var duration = 0.1f;
+        var elapsed = 0f;
+        while (elapsed < duration)
+        {
+            ButtonObj.transform.localPosition = new Vector3(0f, Easing.InOutQuad(elapsed, pushIn ? 0.025f : 0.017f, pushIn ? 0.017f : 0.025f, duration), -0.025f);
+            yield return null;
+            elapsed += Time.deltaTime;
+        }
     }
 
     private void Generate()
@@ -79,11 +98,12 @@ public class DoubleDigitsScript : MonoBehaviour
         {
             digits[i] = Rnd.Range(0, 10);
             screenTexts[i].text = digits[i].ToString();
+            Debug.LogFormat("[Double Digits #{0}] The digit on screen #{1} is a {2}.", _moduleId, i + 1, digits[i]);
         }
         correctDigits[0] = TableOne[Math.Min(Bomb.GetBatteryCount(), 5), digits[0]];
         correctDigits[1] = TableTwo[Math.Min(Bomb.GetBatteryCount(), 5), digits[1]];
         answer = (correctDigits[0] * correctDigits[1]) % 10;
-        Debug.LogFormat("[Double Digits #{0}] The button must be pushed when the last digit of the timer is a {1}", _moduleID, answer);
+        Debug.LogFormat("[Double Digits #{0}] The button must be pushed when the last digit of the timer is a {1}", _moduleId, answer);
     }
 
 #pragma warning disable 0414
@@ -95,7 +115,8 @@ public class DoubleDigitsScript : MonoBehaviour
             yield return null;
         var m = Regex.Match(command, @"^\s*(press\s+)?([0-9])\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (!m.Success)
-            yield return null;
+            yield break;
+        yield return null;
         while ((int)Bomb.GetTime() % 10 != m.Groups[2].Value[0] - '0')
             yield return "trycancel";
         Button.OnInteract();
@@ -107,7 +128,7 @@ public class DoubleDigitsScript : MonoBehaviour
         if (_moduleSolved)
             yield break;
         while ((int)Bomb.GetTime() % 10 != answer)
-            yield return "trycancel";
+            yield return true;
         Button.OnInteract();
         Button.OnInteractEnded();
     }
