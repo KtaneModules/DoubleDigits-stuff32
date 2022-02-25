@@ -112,8 +112,8 @@ public class DoubleDigitsScript : MonoBehaviour
     private IEnumerator ProcessTwitchCommand(string command)
     {
         if (_moduleSolved)
-            yield return null;
-        var m = Regex.Match(command, @"^\s*(press\s+)?([0-9])\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            yield break;
+        var m = Regex.Match(command, @"^\s*(press\s+|submit\s+|push\s+)?([0-9])\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (!m.Success)
             yield break;
         yield return null;
