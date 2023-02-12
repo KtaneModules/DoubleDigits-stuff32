@@ -23,6 +23,8 @@ public class DoubleDigitsScript : MonoBehaviour
     private readonly int[] correctDigits = new int[2];
     private int answer;
 
+    bool allowFunction = true;
+
 
     private static readonly int[,] TableOne = {
         {8, 5, 8, 3, 4, 1, 1, 9, 8, 3},
@@ -47,7 +49,13 @@ public class DoubleDigitsScript : MonoBehaviour
         _moduleId = _moduleIdCounter++;
         Button.OnInteract += ButtonPress;
         Button.OnInteractEnded += ButtonRelease;
-        Generate();
+        for (int i = 0; i < screenTexts.Length; i++)
+        {
+            digits[i] = Rnd.Range(0, 10);
+            screenTexts[i].text = digits[i].ToString();
+        }
+        Debug.LogFormat("[Double Digits #{0}] The digit on screens are {1} and {2}.", _moduleId, digits[0], digits[1]);
+        answer = Generate();
     }
 
     private bool ButtonPress()
@@ -55,7 +63,7 @@ public class DoubleDigitsScript : MonoBehaviour
         Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonPress, Button.transform);
         Button.AddInteractionPunch();
         StartCoroutine(MoveButton(true));
-        if (!_moduleSolved)
+        if (!_moduleSolved && allowFunction)
         {
             if ((int)Bomb.GetTime() % 10 == answer)
             {
@@ -68,7 +76,9 @@ public class DoubleDigitsScript : MonoBehaviour
             else
             {
                 Module.HandleStrike();
-                Debug.LogFormat("[Double Digits #{0}] The button was incorrectly pushed at {1}. Strike.", _moduleId, (int)Bomb.GetTime() % 10);
+                Debug.LogFormat("[Double Digits #{0}] The button was incorrectly pushed at {1}. Strike. Regerating.", _moduleId, (int)Bomb.GetTime() % 10);
+                StartCoroutine(IncorrectAnim());
+
             }
         }
         return false;
@@ -79,6 +89,45 @@ public class DoubleDigitsScript : MonoBehaviour
         Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonRelease, Button.transform);
         StartCoroutine(MoveButton(false));
     }
+
+    private IEnumerator IncorrectAnim()
+    {
+        allowFunction = false;
+        foreach (TextMesh screen in screenTexts)
+        {
+            screen.color = Color.red;
+            screen.text = "✘";
+        }
+        yield return new WaitForSeconds(0.6f);
+
+        digits[0] = Rnd.Range(0, 10);
+        digits[1] = Rnd.Range(0, 10);
+        answer = Generate();
+
+        var changes = 20;
+
+        for (int i = 0; i < changes; i++)
+        {
+            screenTexts[0].text = Rnd.Range(0, 10).ToString();
+            yield return new WaitForSeconds(0.03f);
+        }
+        screenTexts[0].color = Color.white;
+        Audio.PlaySoundAtTransform("click", screenTexts[0].transform);
+        screenTexts[0].text = digits[0].ToString();
+
+        for (int i = 0; i < changes; i++)
+        {
+            screenTexts[1].text = Rnd.Range(0, 10).ToString();
+            yield return new WaitForSeconds(0.03f);
+        }
+        screenTexts[1].color = Color.white;
+        Audio.PlaySoundAtTransform("click", screenTexts[1].transform);
+        screenTexts[1].text = digits[1].ToString();
+
+        Debug.LogFormat("[Double Digits #{0}] The digit on screens are {1} and {2}.", _moduleId, digits[0], digits[1]);
+        allowFunction = true;
+    }
+
 
     private IEnumerator MoveButton(bool pushIn)
     {
@@ -92,18 +141,13 @@ public class DoubleDigitsScript : MonoBehaviour
         }
     }
 
-    private void Generate()
+    private int Generate()
     {
-        for (int i = 0; i < screenTexts.Length; i++)
-        {
-            digits[i] = Rnd.Range(0, 10);
-            screenTexts[i].text = digits[i].ToString();
-            Debug.LogFormat("[Double Digits #{0}] The digit on screen #{1} is a {2}.", _moduleId, i + 1, digits[i]);
-        }
         correctDigits[0] = TableOne[Math.Min(Bomb.GetBatteryCount(), 5), digits[0]];
         correctDigits[1] = TableTwo[Math.Min(Bomb.GetBatteryCount(), 5), digits[1]];
-        answer = (correctDigits[0] * correctDigits[1]) % 10;
-        Debug.LogFormat("[Double Digits #{0}] The button must be pushed when the last digit of the timer is a {1}", _moduleId, answer);
+        int timeWhenPress = (correctDigits[0] * correctDigits[1]) % 10;
+        Debug.LogFormat("[Double Digits #{0}] The button must be pushed when the last digit of the timer is a {1}", _moduleId, timeWhenPress);
+        return timeWhenPress;
     }
 
 #pragma warning disable 0414
